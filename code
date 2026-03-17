@@ -1,0 +1,184 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+Servo gate;
+
+#define TRIG1 9
+#define ECHO1 10
+
+#define TRIG2 7
+#define ECHO2 8
+
+#define TRIG3 5
+#define ECHO3 6
+
+#define RED1 2
+#define GREEN1 3
+
+#define RED2 4
+#define GREEN2 11
+
+#define RED3 12
+#define GREEN3 13
+
+#define TRIG_ENTRY A2
+#define ECHO_ENTRY A0
+
+#define SERVO_PIN A1
+
+float distance1;
+float distance2;
+float distance3;
+float entryDistance;
+
+void setup(){
+
+  Serial.begin(9600);
+
+  lcd.init();
+  lcd.backlight();
+
+  gate.attach(SERVO_PIN);
+  gate.write(0);   // gate closed
+
+  pinMode(TRIG_ENTRY, OUTPUT);
+  pinMode(ECHO_ENTRY, INPUT);
+
+  pinMode(TRIG1, OUTPUT);
+  pinMode(ECHO1, INPUT);
+
+  pinMode(TRIG2, OUTPUT);
+  pinMode(ECHO2, INPUT);
+
+  pinMode(TRIG3, OUTPUT);
+  pinMode(ECHO3, INPUT);
+
+  pinMode(RED1, OUTPUT);
+  pinMode(GREEN1, OUTPUT);
+
+  pinMode(RED2, OUTPUT);
+  pinMode(GREEN2, OUTPUT);
+
+  pinMode(RED3, OUTPUT);
+  pinMode(GREEN3, OUTPUT);
+}
+
+
+
+
+// ===== Sensor Module =====
+
+float readDistance(int trigPin, int echoPin){
+
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+
+  digitalWrite(trigPin, LOW);
+
+  long duration = pulseIn(echoPin, HIGH);
+
+  float distance = duration * 0.034 / 2;
+
+  return distance;
+}
+
+// ===== Slot Module =====
+
+void updateSlot(float distance, int redPin, int greenPin, int slotNumber){
+
+  Serial.print("Slot ");
+  Serial.print(slotNumber);
+  Serial.print(" Distance: ");
+  Serial.println(distance);
+
+  if(distance < 50){
+    Serial.print("Slot ");
+    Serial.print(slotNumber);
+    Serial.println(" Occupied");
+
+    digitalWrite(redPin, HIGH);
+    digitalWrite(greenPin, LOW);
+  }
+  else{
+    Serial.print("Slot ");
+    Serial.print(slotNumber);
+    Serial.println(" Empty");
+
+    digitalWrite(greenPin, HIGH);
+    digitalWrite(redPin, LOW);
+  }
+}
+
+int countSlots(float d1, float d2, float d3){
+
+  int slots = 3;
+
+  if(d1 < 50) slots--;
+  if(d2 < 50) slots--;
+  if(d3 < 50) slots--;
+
+  return slots;
+}
+
+
+// ===== Display Module =====
+void updateLCD(int slots){
+
+  lcd.setCursor(0,0);
+  lcd.print("Slots Available ");
+
+  lcd.setCursor(0,1);
+  lcd.print(slots);
+  lcd.print("/3  ");
+}
+
+
+// ===== Gate Module =====
+void controlGate(float entryDistance, int slots){
+
+  if(entryDistance < 15 && slots > 0){
+
+    gate.write(90);   // open gate
+    delay(3000);
+
+    gate.write(0);    // close gate
+  }
+}
+
+
+//-integration-
+void loop(){
+
+  distance1 = readDistance(TRIG1, ECHO1);
+  delay(60);
+
+  distance2 = readDistance(TRIG2, ECHO2);
+  delay(60);
+
+  distance3 = readDistance(TRIG3, ECHO3);
+  delay(60);
+
+  updateSlot(distance1, RED1, GREEN1, 1);
+  updateSlot(distance2, RED2, GREEN2, 2);
+  updateSlot(distance3, RED3, GREEN3, 3);
+
+  Serial.println("----------------------");
+
+  int slots = countSlots(distance1, distance2, distance3);
+
+  updateLCD(slots);
+
+  entryDistance = readDistance(TRIG_ENTRY, ECHO_ENTRY);
+
+  Serial.print("Entry Distance: ");
+  Serial.println(entryDistance);
+
+  controlGate(entryDistance, slots);
+
+  delay(1000);
+}
