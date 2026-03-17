@@ -33,6 +33,8 @@ float distance2;
 float distance3;
 float entryDistance;
 
+bool gateOpen = false;
+
 void setup(){
 
   Serial.begin(9600);
@@ -64,12 +66,6 @@ void setup(){
   pinMode(RED3, OUTPUT);
   pinMode(GREEN3, OUTPUT);
 }
-
-
-
-
-// ===== Sensor Module =====
-
 float readDistance(int trigPin, int echoPin){
 
   digitalWrite(trigPin, LOW);
@@ -86,9 +82,6 @@ float readDistance(int trigPin, int echoPin){
 
   return distance;
 }
-
-// ===== Slot Module =====
-
 void updateSlot(float distance, int redPin, int greenPin, int slotNumber){
 
   Serial.print("Slot ");
@@ -113,7 +106,6 @@ void updateSlot(float distance, int redPin, int greenPin, int slotNumber){
     digitalWrite(redPin, LOW);
   }
 }
-
 int countSlots(float d1, float d2, float d3){
 
   int slots = 3;
@@ -124,9 +116,6 @@ int countSlots(float d1, float d2, float d3){
 
   return slots;
 }
-
-
-// ===== Display Module =====
 void updateLCD(int slots){
 
   lcd.setCursor(0,0);
@@ -137,21 +126,24 @@ void updateLCD(int slots){
   lcd.print("/3  ");
 }
 
-
-// ===== Gate Module =====
 void controlGate(float entryDistance, int slots){
 
-  if(entryDistance < 15 && slots > 0){
+  Serial.print("Entry Distance: ");
+  Serial.println(entryDistance);
 
-    gate.write(90);   // open gate
+  if(entryDistance < 15 && slots > 0 && gateOpen == false){
+
+    gateOpen = true;
+
+    gate.write(90);     // open gate
     delay(3000);
 
-    gate.write(0);    // close gate
+    gate.write(0);      // close gate
+    delay(1000);
+
+    gateOpen = false;   // ready for next car
   }
 }
-
-
-//-integration-
 void loop(){
 
   distance1 = readDistance(TRIG1, ECHO1);
@@ -175,10 +167,9 @@ void loop(){
 
   entryDistance = readDistance(TRIG_ENTRY, ECHO_ENTRY);
 
-  Serial.print("Entry Distance: ");
-  Serial.println(entryDistance);
 
   controlGate(entryDistance, slots);
 
   delay(1000);
 }
+
